@@ -53,6 +53,35 @@ class ManifestTests(unittest.TestCase):
         self.root.find("project").set("remote", "missing")
         self.assertTrue(verify.validate(self.root))
 
+    def resolution(self):
+        default = self.root.find("default")
+        return [{"status": "PASS", "kind": p.tag, "path": p.get("path", p.get("name")),
+                 "revision": p.get("revision", default.get("revision")),
+                 "upstream": p.get("upstream", ""), "resolved_revision": "a" * 40}
+                for p in self.root.findall("project") + self.root.findall("superproject")]
+
+    def test_superproject_has_no_unsupported_upstream(self):
+        verify.pin_resolved(self.root, self.resolution())
+        self.assertEqual(self.root.find("superproject").get("revision"), "a" * 40)
+        self.assertNotIn("upstream", self.root.find("superproject").attrib)
+        self.assertTrue(all(p.get("upstream") for p in self.root.findall("project")))
+
+    def test_refuses_incomplete_resolution(self):
+        with self.assertRaises(ValueError):
+            verify.pin_resolved(self.root, self.resolution()[:-1])
+
+    def test_refuses_mismatched_resolution_identity(self):
+        results = self.resolution()
+        results[0]["path"] = "other"
+        with self.assertRaises(ValueError):
+            verify.pin_resolved(self.root, results)
+
+    def test_refuses_stale_resolution(self):
+        results = self.resolution()
+        results[0]["status"] = "STALE"
+        with self.assertRaises(ValueError):
+            verify.pin_resolved(self.root, results)
+
 
 if __name__ == "__main__":
     unittest.main()
