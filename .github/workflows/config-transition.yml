@@ -2,7 +2,7 @@ name: Exact kernel configuration transition (no images)
 on:
   push:
     branches: [revival/config-verification]
-    paths: [.github/workflows/config-transition.yml, tools/probe_config_transition.py]
+    paths: [.github/workflows/config-transition.yml, tools/probe_config_transition.py, snapshots/2026-09-06-config-candidate.xml]
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,7 +12,7 @@ concurrency:
 jobs:
   configuration:
     runs-on: ubuntu-24.04
-    timeout-minutes: 18
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -42,17 +42,15 @@ jobs:
           tools/bazel --batch build //kernel_device_modules-6.1:mgk_64_k61.user_config --//build/bazel_mgk_rules:kernel_version=6.1 --repo_env=KERNEL_VERSION="$KERNEL_VERSION" --repo_env=DEFCONFIG_OVERLAYS="$DEFCONFIG_OVERLAYS" --repo_env=SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" --jobs=2 2>&1 | tee "$GITHUB_WORKSPACE/evidence/baseline.log"
           python3 "$GITHUB_WORKSPACE/tools/probe_config_transition.py" "$PWD" --output-config "$GITHUB_WORKSPACE/evidence/baseline.config"
           python3 "$GITHUB_WORKSPACE/tools/probe_config_transition.py" "$PWD" --serializer "$PWD/build/bazel_mgk_rules/kleaf/key_value_repo.bzl" | tee "$GITHUB_WORKSPACE/evidence/serializer-baseline.txt"
-      - name: Change only the two reviewed source revisions
-        timeout-minutes: 2
+      - name: Sync the reusable two-project candidate overlay
+        timeout-minutes: 4
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/config-workspace"
           test -z "$(git -C kernel_device_modules-6.1 status --porcelain)"
           test -z "$(git -C build/bazel_mgk_rules status --porcelain)"
-          git -C kernel_device_modules-6.1 fetch --depth=1 https://github.com/cmdr-chara/android_kernel_device_modules 1f98227e12a7bf94e5af8cc43501c0a4e376a422
-          git -C kernel_device_modules-6.1 checkout --detach 1f98227e12a7bf94e5af8cc43501c0a4e376a422
-          git -C build/bazel_mgk_rules fetch --depth=1 https://github.com/cmdr-chara/kernel-build-bazel_mgk_rules f955699182243b3bd9aa31b8938f33f8689cc8a1
-          git -C build/bazel_mgk_rules checkout --detach f955699182243b3bd9aa31b8938f33f8689cc8a1
+          "$RUNNER_TEMP/config-repo/repo" init -u https://github.com/cmdr-chara/kernel_manifest-6.1 -b "$GITHUB_SHA" -m snapshots/2026-09-06-config-candidate.xml --depth=1 --no-use-superproject --repo-url=https://gerrit.googlesource.com/git-repo --repo-rev=b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77 </dev/null
+          "$RUNNER_TEMP/config-repo/repo" sync -c -j4 --fail-fast --no-tags
           "$RUNNER_TEMP/config-repo/repo" manifest -r -o "$GITHUB_WORKSPACE/evidence/candidate.xml"
           python3 - <<'PY'
           import os, sys
