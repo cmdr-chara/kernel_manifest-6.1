@@ -1,0 +1,24 @@
+{
+  "status": "PASS",
+  "scope": "Native pinned 6.1 configuration comparison; not image/module build or device validation",
+  "run_id": 33998518574,
+  "workflow_commit": "7a7a1cd05f06c5d502d31bbe966e4b2a84a9b71d",
+  "artifact_id": 9978823705,
+  "archive_sha256": "900bf55dc52443756799449ddece4a9c4f9319c9ff347b4e658ac846e77ebdf8",
+  "configs": {
+    "mgk_64_k61.user_config": {"sha256": "5e192377b16b0807adea0136acbb3ca4175399ff66d57d846f3138e098262339", "bytes": 246778, "identical": true},
+    "mgk_64_k61_kernel_aarch64.user_config": {"sha256": "b03afbf0d86ce7191248e642b6280663965bc56756203c98c0e3e5c26e180a60", "bytes": 205518, "identical": true}
+  },
+  "source_changes": {
+    "kernel_device_modules-6.1": {"baseline": "034b70b1cbe1bb56f134bcb9d462daaec89aec7b", "candidate": "1f98227e12a7bf94e5af8cc43501c0a4e376a422"},
+    "build/bazel_mgk_rules": {"baseline": "d8ca975a69cedbfb9c24491fb5ef35ea4443498d", "candidate": "f955699182243b3bd9aa31b8938f33f8689cc8a1"}
+  },
+  "targeted_diagnostics": {
+    "baseline_prompt_redefined": 15,
+    "candidate_prompt_redefined": 0,
+    "baseline_unsupported_character": 12,
+    "candidate_unsupported_character": 0
+  },
+  "source_equivalence": "GAP",
+  "release_status": "BLOCKED"
+}
