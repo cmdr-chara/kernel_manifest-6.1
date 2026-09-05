@@ -1,0 +1,66 @@
+name: Pinned kernel build probe (no deployment)
+
+on:
+  push:
+    branches: [revival/owned-pinned-manifest]
+    paths: [.github/workflows/kernel-build-probe.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Initialize exact source snapshot
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          mkdir build-evidence
+          { uname -a; nproc; free -h; df -h .; git --version; python3 --version; } > build-evidence/host.txt
+          git config --global user.name 'Malachite source probe'
+          git config --global user.email 'malachite-probe@users.noreply.github.com'
+          mkdir "$RUNNER_TEMP/repo-launcher" "$RUNNER_TEMP/kernel-workspace"
+          git -C "$RUNNER_TEMP/repo-launcher" init -q
+          git -C "$RUNNER_TEMP/repo-launcher" fetch --depth=1 https://gerrit.googlesource.com/git-repo b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77
+          git -C "$RUNNER_TEMP/repo-launcher" checkout --detach -q FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/repo-launcher" rev-parse HEAD)" = b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77
+          cd "$RUNNER_TEMP/kernel-workspace"
+          "$RUNNER_TEMP/repo-launcher/repo" init -u https://github.com/cmdr-chara/kernel_manifest-6.1 -b "$GITHUB_SHA" -m snapshots/2026-09-05.xml --depth=1 --no-use-superproject --repo-url=https://gerrit.googlesource.com/git-repo --repo-rev=b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77 </dev/null 2>&1 | tee "$GITHUB_WORKSPACE/build-evidence/init.log"
+      - name: Sync the pinned sources and toolchains
+        timeout-minutes: 6
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/kernel-workspace"
+          "$RUNNER_TEMP/repo-launcher/repo" sync -c -j4 --fail-fast --no-tags 2>&1 | tee "$GITHUB_WORKSPACE/build-evidence/sync.log"
+          "$RUNNER_TEMP/repo-launcher/repo" manifest -r -o "$GITHUB_WORKSPACE/build-evidence/manifest.xml"
+      - name: Compile the customer user distribution without deploying it
+        timeout-minutes: 20
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/kernel-workspace"
+          export KERNEL_VERSION=kernel-6.1 DEFCONFIG_OVERLAYS=malachite.config
+          export SOURCE_DATE_EPOCH="$(git -C kernel-6.1 show -s --format=%ct HEAD)"
+          printf 'KERNEL_VERSION=%s\nDEFCONFIG_OVERLAYS=%s\nSOURCE_DATE_EPOCH=%s\n' "$KERNEL_VERSION" "$DEFCONFIG_OVERLAYS" "$SOURCE_DATE_EPOCH" > "$GITHUB_WORKSPACE/build-evidence/configuration.txt"
+          tools/bazel --batch build //kernel_device_modules-6.1:mgk_64_k61_customer_dist.user --//build/bazel_mgk_rules:kernel_version=6.1 --repo_env=KERNEL_VERSION="$KERNEL_VERSION" --repo_env=DEFCONFIG_OVERLAYS="$DEFCONFIG_OVERLAYS" --repo_env=SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" --jobs=2 2>&1 | tee "$GITHUB_WORKSPACE/build-evidence/build.log"
+      - name: Record capacity and generated output names
+        if: always()
+        run: |
+          mkdir -p build-evidence
+          { free -h; df -h .; } > build-evidence/host-final.txt
+          if test -d "$RUNNER_TEMP/kernel-workspace/out"; then
+            find "$RUNNER_TEMP/kernel-workspace/out" -type f \( -name 'Image*' -o -name '*.ko' -o -name '*.dtb' -o -name 'Module.symvers' \) -printf '%P\t%s\n' > build-evidence/generated-files.txt
+          fi
+      - name: Preserve evidence only; never publish a flashable release
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kernel-build-probe-${{ github.sha }}
+          path: build-evidence/
+          if-no-files-found: error
+          retention-days: 7
