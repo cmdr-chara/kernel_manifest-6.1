@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <!-- Build-review candidate only. Android still consumes the unchanged prebuilts. -->
+  <include name="snapshots/2026-09-05-kmi-candidate.xml" />
+  <extend-project name="android_kernel_device_modules" path="kernel_device_modules-6.1"
+                  base-rev="034b70b1cbe1bb56f134bcb9d462daaec89aec7b"
+                  revision="1f98227e12a7bf94e5af8cc43501c0a4e376a422"
+                  upstream="refs/heads/revival/kconfig-contracts" />
+  <extend-project name="kernel-build-bazel_mgk_rules" path="build/bazel_mgk_rules"
+                  base-rev="d8ca975a69cedbfb9c24491fb5ef35ea4443498d"
+                  revision="f955699182243b3bd9aa31b8938f33f8689cc8a1"
+                  upstream="refs/heads/revival/quoted-config-values" />
+</manifest>
