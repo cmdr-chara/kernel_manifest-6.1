@@ -12,7 +12,7 @@ permissions:
 jobs:
   build-probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -46,7 +46,7 @@ jobs:
             "$GITHUB_WORKSPACE/build-evidence/manifest.xml" \
             --kernel-revision fc1616578c449fc0bf4a6a061046e2992347f3c6
       - name: Compile with the same KMI checks and module configuration
-        timeout-minutes: 20
+        timeout-minutes: 45
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/kernel-workspace"
