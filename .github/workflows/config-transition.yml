@@ -1,0 +1,91 @@
+name: Exact kernel configuration transition (no images)
+on:
+  push:
+    branches: [revival/config-verification]
+    paths: [.github/workflows/config-transition.yml, tools/probe_config_transition.py]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: config-transition-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  configuration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Sync the previously built 22-project snapshot
+        timeout-minutes: 7
+        run: |
+          set -euo pipefail
+          mkdir evidence "$RUNNER_TEMP/config-workspace" "$RUNNER_TEMP/config-repo"
+          git -C "$RUNNER_TEMP/config-repo" init -q
+          git -C "$RUNNER_TEMP/config-repo" fetch --depth=1 https://gerrit.googlesource.com/git-repo b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77
+          git -C "$RUNNER_TEMP/config-repo" checkout --detach -q FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/config-repo" rev-parse HEAD)" = b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77
+          git config --global user.name 'Malachite configuration probe'
+          git config --global user.email 'malachite-probe@users.noreply.github.com'
+          cd "$RUNNER_TEMP/config-workspace"
+          "$RUNNER_TEMP/config-repo/repo" init -u https://github.com/cmdr-chara/kernel_manifest-6.1 -b "$GITHUB_SHA" -m snapshots/2026-09-05-kmi-candidate.xml --depth=1 --no-use-superproject --repo-url=https://gerrit.googlesource.com/git-repo --repo-rev=b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77 </dev/null
+          "$RUNNER_TEMP/config-repo/repo" sync -c -j4 --fail-fast --no-tags
+          "$RUNNER_TEMP/config-repo/repo" manifest -r -o "$GITHUB_WORKSPACE/evidence/baseline.xml"
+          python3 "$GITHUB_WORKSPACE/tools/check_synced_snapshot.py" "$GITHUB_WORKSPACE/snapshots/2026-09-05.xml" "$GITHUB_WORKSPACE/evidence/baseline.xml" --kernel-revision fc1616578c449fc0bf4a6a061046e2992347f3c6
+      - name: Generate baseline configuration and reproduce serializer failures
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/config-workspace"
+          export KERNEL_VERSION=kernel-6.1 DEFCONFIG_OVERLAYS=malachite.config SOURCE_DATE_EPOCH=1788641561
+          tools/bazel --batch build //kernel_device_modules-6.1:mgk_64_k61.user_config --//build/bazel_mgk_rules:kernel_version=6.1 --repo_env=KERNEL_VERSION="$KERNEL_VERSION" --repo_env=DEFCONFIG_OVERLAYS="$DEFCONFIG_OVERLAYS" --repo_env=SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" --jobs=2 2>&1 | tee "$GITHUB_WORKSPACE/evidence/baseline.log"
+          python3 "$GITHUB_WORKSPACE/tools/probe_config_transition.py" "$PWD" --output-config "$GITHUB_WORKSPACE/evidence/baseline.config"
+          python3 "$GITHUB_WORKSPACE/tools/probe_config_transition.py" "$PWD" --serializer "$PWD/build/bazel_mgk_rules/kleaf/key_value_repo.bzl" | tee "$GITHUB_WORKSPACE/evidence/serializer-baseline.txt"
+      - name: Change only the two reviewed source revisions
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/config-workspace"
+          test -z "$(git -C kernel_device_modules-6.1 status --porcelain)"
+          test -z "$(git -C build/bazel_mgk_rules status --porcelain)"
+          git -C kernel_device_modules-6.1 fetch --depth=1 https://github.com/cmdr-chara/android_kernel_device_modules 1f98227e12a7bf94e5af8cc43501c0a4e376a422
+          git -C kernel_device_modules-6.1 checkout --detach 1f98227e12a7bf94e5af8cc43501c0a4e376a422
+          git -C build/bazel_mgk_rules fetch --depth=1 https://github.com/cmdr-chara/kernel-build-bazel_mgk_rules f955699182243b3bd9aa31b8938f33f8689cc8a1
+          git -C build/bazel_mgk_rules checkout --detach f955699182243b3bd9aa31b8938f33f8689cc8a1
+          "$RUNNER_TEMP/config-repo/repo" manifest -r -o "$GITHUB_WORKSPACE/evidence/candidate.xml"
+          python3 - <<'PY'
+          import os, sys
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          root = Path(os.environ['GITHUB_WORKSPACE'])
+          sys.path.insert(0, str(root / 'tools'))
+          from check_synced_snapshot import inventory
+          expected = inventory(ET.parse(root / 'evidence/baseline.xml').getroot())
+          for path, revision in {'kernel_device_modules-6.1': '1f98227e12a7bf94e5af8cc43501c0a4e376a422', 'build/bazel_mgk_rules': 'f955699182243b3bd9aa31b8938f33f8689cc8a1'}.items():
+              name, remote, _, links = expected[path]
+              expected[path] = (name, remote, revision, links)
+          actual = inventory(ET.parse(root / 'evidence/candidate.xml').getroot())
+          if len(actual) != 22 or actual != expected:
+              raise SystemExit('FAIL: unrelated source identity changed')
+          print('PASS: only the two reviewed projects changed')
+          PY
+      - name: Compare exact 6.1 configuration and exercise native Starlark
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/config-workspace"
+          export KERNEL_VERSION=kernel-6.1 DEFCONFIG_OVERLAYS=malachite.config SOURCE_DATE_EPOCH=1788641561
+          tools/bazel --batch build //kernel_device_modules-6.1:mgk_64_k61.user_config --//build/bazel_mgk_rules:kernel_version=6.1 --repo_env=KERNEL_VERSION="$KERNEL_VERSION" --repo_env=DEFCONFIG_OVERLAYS="$DEFCONFIG_OVERLAYS" --repo_env=SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" --jobs=2 2>&1 | tee "$GITHUB_WORKSPACE/evidence/candidate.log"
+          python3 "$GITHUB_WORKSPACE/tools/probe_config_transition.py" "$PWD" --output-config "$GITHUB_WORKSPACE/evidence/candidate.config"
+          cmp "$GITHUB_WORKSPACE/evidence/baseline.config" "$GITHUB_WORKSPACE/evidence/candidate.config"
+          python3 "$GITHUB_WORKSPACE/tools/probe_config_transition.py" "$PWD" --serializer "$PWD/build/bazel_mgk_rules/kleaf/key_value_repo.bzl" --expect-fixed | tee "$GITHUB_WORKSPACE/evidence/serializer-candidate.txt"
+          echo 'PASS: identical full 6.1 configuration; native serializer cases pass. No image build or device validation.' | tee "$GITHUB_WORKSPACE/evidence/result.txt"
+      - name: Preserve evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: config-transition-${{ github.sha }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 7
