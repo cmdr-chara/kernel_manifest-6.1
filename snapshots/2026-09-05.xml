@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Source snapshot resolved by Actions run 33989636041; not a build certification. -->
+<manifest>
+  <remote name="aosp" fetch="https://android-review.googlesource.com/" />
+  <default revision="main-kernel-build-2023" remote="aosp" sync-j="4" />
+  <remote name="cmdr-chara" fetch="https://github.com/cmdr-chara/" />
+  <superproject name="kernel/superproject" remote="aosp" revision="40984a77a42601b183c9a4844e77e1051eadecc7" />
+  <project path="build/kernel" name="kernel/build" revision="d02d210ea8b8b33622e42f6eeee1eb729567761a" upstream="refs/heads/main-kernel-build-2023">
+    <linkfile src="kleaf/bazel.sh" dest="tools/bazel" />
+    <linkfile src="build_test.sh" dest="build/build_test.sh" />
+    <linkfile src="config.sh" dest="build/config.sh" />
+  </project>
+  <project path="common" name="kernel/common" revision="1229b4e7190618c029a43047a5232828d6db729f" upstream="refs/heads/android14-6.1" />
+  <project path="kernel/configs" name="kernel/configs" revision="bd79f38685cf939ab836dd8ddd2e01506ccff47a" upstream="refs/heads/main" />
+  <project path="common-modules/virtual-device" name="kernel/common-modules/virtual-device" revision="529e4edbd01fb9d7c8ace1d006e0976145dcd728" upstream="refs/heads/android14-6.1" />
+  <project path="common-modules/wonder" name="kernel/common-modules/wonder" revision="71026f6078ca5c44e173d12151e767781a12beb5" upstream="refs/heads/android14-6.1" />
+  <project path="prebuilts/clang/host/linux-x86" name="platform/prebuilts/clang/host/linux-x86" clone-depth="1" revision="382db94fa9597402b69e252c36bf9902cc283b82" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="prebuilts/gcc/linux-x86/host/x86_64-linux-glibc2.17-4.8" name="platform/prebuilts/gcc/linux-x86/host/x86_64-linux-glibc2.17-4.8" clone-depth="1" revision="f6d40532273c8bd628b960ecc0970c7294c8d891" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="prebuilts/build-tools" name="platform/prebuilts/build-tools" clone-depth="1" revision="4649614b4030ad825f2e94401d04526651f44e88" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="prebuilts/clang-tools" name="platform/prebuilts/clang-tools" clone-depth="1" revision="f08a96e4015aed7c0341b880ccd85500b1b44a26" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="prebuilts/kernel-build-tools" name="kernel/prebuilts/build-tools" clone-depth="1" revision="e905be252a53d20c52bd9e59df3ff8fdd46b9eab" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="tools/mkbootimg" name="platform/system/tools/mkbootimg" revision="615a1fced5f8e2755642d30357674d3bfa21b85e" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="prebuilts/bazel/linux-x86_64" name="platform/prebuilts/bazel/linux-x86_64" clone-depth="1" revision="7bfbec9e829bbae6816d5f39aba345df76e627c1" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="prebuilts/jdk/jdk11" name="platform/prebuilts/jdk/jdk11" clone-depth="1" revision="649eec4416e2ed6298af49a56876772767a0e5ae" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="prebuilts/ndk-r23" name="toolchain/prebuilts/ndk/r23" clone-depth="1" revision="19ac7e4eded12adb99d4f613490dde6dd0e72664" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="external/bazel-skylib" name="platform/external/bazel-skylib" revision="f998e5dc13c03f0eae9e373263d3afff0932c738" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="build/bazel_common_rules" name="platform/build/bazel_common_rules" revision="62c496cd1d821948d2f4a7fcf702e54416e5a754" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="external/stardoc" name="platform/external/stardoc" revision="e83f522ee95419e55d2c5654aa6e0143beeef595" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="external/python/absl-py" name="platform/external/python/absl-py" revision="2f199605a9875340569e039657f8b4c72d51b84d" upstream="refs/heads/main-kernel-build-2023" />
+  <project path="kernel-6.1" name="android_kernel_xiaomi_mt6878" revision="9f205dab5f27cf81e5036aeb46d7b79c13a751d9" upstream="refs/heads/lineage-23.2" remote="cmdr-chara">
+    <linkfile src="build.config.constants" dest="build.config.constants" />
+  </project>
+  <project path="kernel_device_modules-6.1" name="android_kernel_device_modules" revision="034b70b1cbe1bb56f134bcb9d462daaec89aec7b" upstream="refs/heads/lineage-23.2" remote="cmdr-chara">
+    <linkfile src="build.config.malachite" dest="build.config" />
+  </project>
+  <project path="vendor/mediatek/kernel_modules" name="android_vendor_mediatek_kernel_modules" revision="ce0e09550e0952ede49a10b602aa0198f52d625f" upstream="refs/heads/lineage-23.2" remote="cmdr-chara" />
+  <project path="build/bazel_mgk_rules" name="kernel-build-bazel_mgk_rules" revision="d8ca975a69cedbfb9c24491fb5ef35ea4443498d" upstream="refs/heads/lineage-23.2" remote="cmdr-chara">
+    <linkfile src="BUILD.bazel" dest="BUILD" />
+    <linkfile src="kleaf/bazel.WORKSPACE" dest="WORKSPACE" />
+  </project>
+</manifest>
