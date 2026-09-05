@@ -55,9 +55,14 @@ jobs:
           evidence = Path(os.environ['GITHUB_WORKSPACE']) / 'config-evidence'
           stage, name = sys.argv[1:]
           outputs = (evidence / f'{stage}-{name}.outputs').read_text().splitlines()
-          configs = [Path(p) for p in outputs if Path(p).name == '.config']
-          if len(configs) != 1 or not configs[0].is_file():
-              raise SystemExit(f'Expected one real .config output for {name}; got {outputs}')
+          configs = []
+          for output in outputs:
+              path = Path(output)
+              config = path / '.config' if path.is_dir() else path
+              if config.name == '.config' and config.is_file():
+                  configs.append(config)
+          if len(configs) != 1:
+              raise SystemExit(f'Expected one real .config in declared outputs for {name}; got {outputs}')
           (evidence / f'{stage}-{name}.config').write_bytes(configs[0].read_bytes())
           PY
             done
