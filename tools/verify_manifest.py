@@ -124,6 +124,24 @@ def resolve(root: ET.Element) -> list[dict]:
         return list(pool.map(probe, items))
 
 
+def pin_resolved(root: ET.Element, results: list[dict]) -> None:
+    """Pin only verified matching identities; superproject has no upstream attribute."""
+    projects = root.findall("project") + root.findall("superproject")
+    if len(projects) != len(results):
+        raise ValueError("Resolution inventory count differs")
+    for project, result in zip(projects, results):
+        if (result.get("status") != "PASS" or result.get("kind") != project.tag
+                or result.get("path") != project.get("path", project.get("name"))
+                or not SHA.fullmatch(result.get("resolved_revision", ""))):
+            raise ValueError("Resolution evidence does not match the manifest")
+    for project, result in zip(projects, results):
+        project.set("revision", result["resolved_revision"])
+        if project.tag == "project":
+            project.set("upstream", result["upstream"] or "refs/heads/" + result["revision"].removeprefix("refs/heads/"))
+        else:
+            project.attrib.pop("upstream", None)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", nargs="?", type=Path, default=Path("default.xml"))
@@ -144,9 +162,7 @@ def main() -> int:
     for result in results:
         print(f"{result['status']} {result['path']}: {result.get('resolved_revision', result.get('detail'))}")
     if all(result["status"] == "PASS" for result in results):
-        for project, result in zip(root.findall("project") + root.findall("superproject"), results):
-            project.set("revision", result["resolved_revision"])
-            project.set("upstream", result["upstream"] or "refs/heads/" + result["revision"].removeprefix("refs/heads/"))
+        pin_resolved(root, results)
         ET.indent(root)
         ET.ElementTree(root).write(args.output / "resolved.xml", encoding="utf-8", xml_declaration=True)
         return 0
