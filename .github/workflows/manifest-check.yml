@@ -1,0 +1,32 @@
+name: Kernel manifest contracts
+
+on:
+  push:
+    branches: [revival/owned-pinned-manifest]
+  pull_request:
+    branches: [lineage-23.2]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Offline contract regression tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Resolve public source refs without checking out or building code
+        run: python3 tools/verify_manifest.py --resolve
+      - name: Preserve exact ref-resolution evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kernel-manifest-${{ github.sha }}
+          path: manifest-evidence/
+          if-no-files-found: error
+          retention-days: 7
