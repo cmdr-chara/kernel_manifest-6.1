@@ -17,6 +17,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Test the snapshot guard before fetching sources
+        run: python3 -m unittest discover -s tests -p 'test_synced_snapshot.py' -v
       - name: Initialize the exact KMI candidate
         timeout-minutes: 3
         run: |
@@ -39,20 +41,10 @@ jobs:
           cd "$RUNNER_TEMP/kernel-workspace"
           "$RUNNER_TEMP/repo-launcher/repo" sync -c -j4 --fail-fast --no-tags 2>&1 | tee "$GITHUB_WORKSPACE/build-evidence/sync.log"
           "$RUNNER_TEMP/repo-launcher/repo" manifest -r -o "$GITHUB_WORKSPACE/build-evidence/manifest.xml"
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          import xml.etree.ElementTree as ET
-          root = Path(os.environ['GITHUB_WORKSPACE'])
-          baseline = ET.parse(root / 'snapshots/2026-09-05.xml').getroot()
-          actual = ET.parse(root / 'build-evidence/manifest.xml').getroot()
-          expected = {p.get('path'): p.get('revision') for p in baseline.findall('project')}
-          expected['kernel-6.1'] = 'fc1616578c449fc0bf4a6a061046e2992347f3c6'
-          observed = {p.get('path'): p.get('revision') for p in actual.findall('project')}
-          if observed != expected or len(observed) != 22:
-              raise SystemExit('STOP: synced candidate does not match the exact 22-project source lock')
-          print('PASS: only the pinned Xiaomi kernel candidate differs from the baseline snapshot')
-          PY
+          python3 "$GITHUB_WORKSPACE/tools/check_synced_snapshot.py" \
+            "$GITHUB_WORKSPACE/snapshots/2026-09-05.xml" \
+            "$GITHUB_WORKSPACE/build-evidence/manifest.xml" \
+            --kernel-revision fc1616578c449fc0bf4a6a061046e2992347f3c6
       - name: Compile with the same KMI checks and module configuration
         timeout-minutes: 20
         run: |
