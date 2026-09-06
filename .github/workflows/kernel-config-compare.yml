@@ -1,0 +1,91 @@
+name: Pinned kernel configuration comparison
+on:
+  push:
+    branches: [revival/owned-pinned-manifest]
+    paths: [.github/workflows/kernel-config-compare.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Initialize the already-built KMI snapshot
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          mkdir config-evidence "$RUNNER_TEMP/config-workspace" "$RUNNER_TEMP/repo-launcher"
+          git -C "$RUNNER_TEMP/repo-launcher" init -q
+          git -C "$RUNNER_TEMP/repo-launcher" fetch --depth=1 https://gerrit.googlesource.com/git-repo b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77
+          git -C "$RUNNER_TEMP/repo-launcher" checkout --detach -q FETCH_HEAD
+          git config --global user.name 'Malachite configuration probe'
+          git config --global user.email 'malachite-probe@users.noreply.github.com'
+          cd "$RUNNER_TEMP/config-workspace"
+          "$RUNNER_TEMP/repo-launcher/repo" init -u https://github.com/cmdr-chara/kernel_manifest-6.1 -b "$GITHUB_SHA" -m snapshots/2026-09-05-kmi-candidate.xml --depth=1 --no-use-superproject --repo-url=https://gerrit.googlesource.com/git-repo --repo-rev=b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77 </dev/null 2>&1 | tee "$GITHUB_WORKSPACE/config-evidence/init.log"
+      - name: Sync and verify baseline identities
+        timeout-minutes: 6
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/config-workspace"
+          "$RUNNER_TEMP/repo-launcher/repo" sync -c -j4 --fail-fast --no-tags 2>&1 | tee "$GITHUB_WORKSPACE/config-evidence/sync.log"
+          "$RUNNER_TEMP/repo-launcher/repo" manifest -r -o "$GITHUB_WORKSPACE/config-evidence/baseline.xml"
+          python3 "$GITHUB_WORKSPACE/tools/check_synced_snapshot.py" "$GITHUB_WORKSPACE/snapshots/2026-09-05.xml" "$GITHUB_WORKSPACE/config-evidence/baseline.xml" --kernel-revision fc1616578c449fc0bf4a6a061046e2992347f3c6
+      - name: Build and compare configurations without compiling images
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/config-workspace"
+          export KERNEL_VERSION=kernel-6.1 DEFCONFIG_OVERLAYS=malachite.config
+          export SOURCE_DATE_EPOCH="$(git -C kernel-6.1 show -s --format=%ct HEAD)"
+          args=(--//build/bazel_mgk_rules:kernel_version=6.1 --repo_env=KERNEL_VERSION="$KERNEL_VERSION" --repo_env=DEFCONFIG_OVERLAYS="$DEFCONFIG_OVERLAYS" --repo_env=SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" --jobs=2)
+          targets=(//kernel_device_modules-6.1:mgk_64_k61.user_config //kernel_device_modules-6.1:mgk_64_k61_kernel_aarch64.user_config)
+          capture() {
+            stage="$1"
+            tools/bazel --batch build "${targets[@]}" "${args[@]}" 2>&1 | tee "$GITHUB_WORKSPACE/config-evidence/$stage.log"
+            for target in "${targets[@]}"; do
+              name="${target##*:}"
+              tools/bazel --batch cquery "$target" "${args[@]}" --output=files > "$GITHUB_WORKSPACE/config-evidence/$stage-$name.outputs"
+              python3 - "$stage" "$name" <<'PY'
+          import os, sys
+          from pathlib import Path
+          evidence = Path(os.environ['GITHUB_WORKSPACE']) / 'config-evidence'
+          stage, name = sys.argv[1:]
+          outputs = (evidence / f'{stage}-{name}.outputs').read_text().splitlines()
+          configs = []
+          for output in outputs:
+              path = Path(output)
+              config = path / '.config' if path.is_dir() else path
+              if config.name == '.config' and config.is_file():
+                  configs.append(config)
+          if len(configs) != 1:
+              raise SystemExit(f'Expected one real .config in declared outputs for {name}; got {outputs}')
+          (evidence / f'{stage}-{name}.config').write_bytes(configs[0].read_bytes())
+          PY
+            done
+          }
+          capture baseline
+          test "$(git -C kernel_device_modules-6.1 rev-parse HEAD)" = 034b70b1cbe1bb56f134bcb9d462daaec89aec7b
+          test "$(git -C build/bazel_mgk_rules rev-parse HEAD)" = d8ca975a69cedbfb9c24491fb5ef35ea4443498d
+          git -C kernel_device_modules-6.1 fetch --depth=1 https://github.com/cmdr-chara/android_kernel_device_modules.git 1f98227e12a7bf94e5af8cc43501c0a4e376a422
+          git -C kernel_device_modules-6.1 checkout --detach 1f98227e12a7bf94e5af8cc43501c0a4e376a422
+          git -C build/bazel_mgk_rules fetch --depth=1 https://github.com/cmdr-chara/kernel-build-bazel_mgk_rules.git f955699182243b3bd9aa31b8938f33f8689cc8a1
+          git -C build/bazel_mgk_rules checkout --detach f955699182243b3bd9aa31b8938f33f8689cc8a1
+          "$RUNNER_TEMP/repo-launcher/repo" manifest -r -o "$GITHUB_WORKSPACE/config-evidence/candidate.xml"
+          capture candidate
+          for target in "${targets[@]}"; do
+            name="${target##*:}"
+            diff -u "$GITHUB_WORKSPACE/config-evidence/baseline-$name.config" "$GITHUB_WORKSPACE/config-evidence/candidate-$name.config"
+          done
+          printf '%s\n' 'PASS: two pinned native 6.1 configurations are byte-identical; images and modules not compiled' | tee "$GITHUB_WORKSPACE/config-evidence/result.txt"
+      - name: Preserve evidence including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: kernel-config-compare-${{ github.sha }}
+          path: config-evidence/
+          if-no-files-found: error
+          retention-days: 7

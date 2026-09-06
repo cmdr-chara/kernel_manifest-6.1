@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <!-- Experimental source-build candidate, not a replacement for the Android prebuilt baseline. -->
+  <include name="snapshots/2026-09-05.xml" />
+  <extend-project name="android_kernel_xiaomi_mt6878" path="kernel-6.1"
+                  base-rev="9f205dab5f27cf81e5036aeb46d7b79c13a751d9"
+                  revision="fc1616578c449fc0bf4a6a061046e2992347f3c6"
+                  upstream="refs/heads/revival/kmi-symbol-repair" />
+</manifest>

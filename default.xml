@@ -3,7 +3,7 @@
   <remote  name="aosp" fetch="https://android-review.googlesource.com/" />
   <default revision="main-kernel-build-2023" remote="aosp" sync-j="4" />
 
-  <remote name="mt6878-devs" fetch="https://github.com/mt6878-devs/" />
+  <remote name="cmdr-chara" fetch="https://github.com/cmdr-chara/" />
 
   <superproject name="kernel/superproject" remote="aosp" revision="common-android14-6.1" />
 
@@ -35,17 +35,17 @@
   <project path="external/python/absl-py" name="platform/external/python/absl-py" />
 
   <!-- malachite kernel sources -->
-  <project path="kernel-6.1" name="android_kernel_xiaomi_mt6878" revision="lineage-23.2" remote="mt6878-devs">
+  <project path="kernel-6.1" name="android_kernel_xiaomi_mt6878" revision="9f205dab5f27cf81e5036aeb46d7b79c13a751d9" upstream="refs/heads/lineage-23.2" remote="cmdr-chara">
     <linkfile src="build.config.constants" dest="build.config.constants" />
   </project>
   
-  <project path="kernel_device_modules-6.1" name="android_kernel_device_modules" revision="lineage-23.2" remote="mt6878-devs">
+  <project path="kernel_device_modules-6.1" name="android_kernel_device_modules" revision="034b70b1cbe1bb56f134bcb9d462daaec89aec7b" upstream="refs/heads/lineage-23.2" remote="cmdr-chara">
     <linkfile src="build.config.malachite" dest="build.config" />
   </project>
 
-  <project path="vendor/mediatek/kernel_modules" name="android_vendor_mediatek_kernel_modules" revision="lineage-23.2" remote="mt6878-devs" />
+  <project path="vendor/mediatek/kernel_modules" name="android_vendor_mediatek_kernel_modules" revision="ce0e09550e0952ede49a10b602aa0198f52d625f" upstream="refs/heads/lineage-23.2" remote="cmdr-chara" />
   
-  <project path="build/bazel_mgk_rules" name="kernel-build-bazel_mgk_rules" revision="lineage-23.2" remote="mt6878-devs">
+  <project path="build/bazel_mgk_rules" name="kernel-build-bazel_mgk_rules" revision="d8ca975a69cedbfb9c24491fb5ef35ea4443498d" upstream="refs/heads/lineage-23.2" remote="cmdr-chara">
     <linkfile src="BUILD.bazel" dest="BUILD" />
     <linkfile src="kleaf/bazel.WORKSPACE" dest="WORKSPACE" />
   </project>

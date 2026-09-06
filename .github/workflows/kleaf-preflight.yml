@@ -1,0 +1,66 @@
+name: Kleaf configuration preflight (no image build)
+
+on:
+  push:
+    branches: [revival/owned-pinned-manifest]
+    paths:
+      - .github/workflows/kleaf-preflight.yml
+      - snapshots/2026-09-05.xml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  configure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Initialize the pinned kernel source workspace
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          mkdir preflight-evidence
+          { uname -a; free -h; df -h .; git --version; python3 --version; } > preflight-evidence/host.txt
+          git config --global user.name 'Malachite source preflight'
+          git config --global user.email 'malachite-preflight@users.noreply.github.com'
+          mkdir "$RUNNER_TEMP/repo-launcher" "$RUNNER_TEMP/kernel-workspace"
+          git -C "$RUNNER_TEMP/repo-launcher" init -q
+          git -C "$RUNNER_TEMP/repo-launcher" fetch --depth=1 https://gerrit.googlesource.com/git-repo b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77
+          git -C "$RUNNER_TEMP/repo-launcher" checkout --detach -q FETCH_HEAD
+          test "$(git -C "$RUNNER_TEMP/repo-launcher" rev-parse HEAD)" = b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77
+          cd "$RUNNER_TEMP/kernel-workspace"
+          "$RUNNER_TEMP/repo-launcher/repo" init -u https://github.com/cmdr-chara/kernel_manifest-6.1 -b "$GITHUB_SHA" -m snapshots/2026-09-05.xml --depth=1 --no-use-superproject --repo-url=https://gerrit.googlesource.com/git-repo --repo-rev=b85886fa9f5b4e2189cc5b2f40bd0a80459d4c77 </dev/null 2>&1 | tee "$GITHUB_WORKSPACE/preflight-evidence/init.log"
+      - name: Sync exact source and upstream toolchain revisions
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/kernel-workspace"
+          "$RUNNER_TEMP/repo-launcher/repo" sync -c -j4 --fail-fast --no-tags 2>&1 | tee "$GITHUB_WORKSPACE/preflight-evidence/sync.log"
+          "$RUNNER_TEMP/repo-launcher/repo" manifest -r -o "$GITHUB_WORKSPACE/preflight-evidence/manifest.xml"
+      - name: Configure the malachite customer user target without compiling images
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/kernel-workspace"
+          export KERNEL_VERSION=kernel-6.1
+          export DEFCONFIG_OVERLAYS=malachite.config
+          export SOURCE_DATE_EPOCH="$(git -C kernel-6.1 show -s --format=%ct HEAD)"
+          printf 'KERNEL_VERSION=%s\nDEFCONFIG_OVERLAYS=%s\nSOURCE_DATE_EPOCH=%s\n' "$KERNEL_VERSION" "$DEFCONFIG_OVERLAYS" "$SOURCE_DATE_EPOCH" > "$GITHUB_WORKSPACE/preflight-evidence/configuration.txt"
+          tools/bazel --batch cquery //kernel_device_modules-6.1:mgk_64_k61_customer_dist.user --//build/bazel_mgk_rules:kernel_version=6.1 --repo_env=KERNEL_VERSION="$KERNEL_VERSION" --repo_env=DEFCONFIG_OVERLAYS="$DEFCONFIG_OVERLAYS" --repo_env=SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" --jobs=2 2>&1 | tee "$GITHUB_WORKSPACE/preflight-evidence/cquery.log"
+      - name: Record remaining host capacity
+        if: always()
+        run: |
+          mkdir -p preflight-evidence
+          { free -h; df -h .; } > preflight-evidence/host-final.txt
+      - name: Preserve preflight evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kleaf-preflight-${{ github.sha }}
+          path: preflight-evidence/
+          if-no-files-found: error
+          retention-days: 7

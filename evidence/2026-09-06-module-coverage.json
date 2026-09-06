@@ -1,0 +1,25 @@
+{
+  "claim": "Observed basename coverage only; not ABI or release validation",
+  "input_sha256": {
+    "generated-files.txt": "13c0bd72ec42257eaadbcd2a13894fe8cd5dfeaa7e28a9a7d3eb0a6ab73930aa",
+    "modules.load.recovery": "f05d3cbce6e5af6a6dbd681981e552d4f386d9e516aee0b2dcd79bbf91c64e73",
+    "modules.load.system": "460d5fc6fb341be6c72acf8b2d445e5c2650f5d7a1f9e8a393f83c7fd4a167b7",
+    "modules.load.vendor": "238751a9f95fca09d100f427a4760f5a23be9b43966e2afbb2716f640ca68683",
+    "modules.load.vendor_ramdisk": "40cc97efeff49e0fb75562b61b3026a1943971bfb67a45d6d6ff32a35abb2262",
+    "prebuilt-evidence.json": "72878255e17c2875c93e4db190660c1ee17238d419c2514c9dec668eea1365b4"
+  },
+  "load_lists": {
+    "modules.load.recovery": {"entries": 214, "not_observed": ["bootprof.ko", "mi_memory.ko"], "unique_names": 213},
+    "modules.load.system": {"entries": 60, "not_observed": [], "unique_names": 60},
+    "modules.load.vendor": {"entries": 208, "not_observed": ["cpumaxfreq.ko", "fpsgo.ko", "frs.ko", "lb.ko", "mi_sw_sync.ko", "migt.ko", "mtk_fpsgo.ko", "mtk_mbraink.ko", "perf_helper.ko", "xiaomi_wifi_gpio.ko"], "unique_names": 208},
+    "modules.load.vendor_ramdisk": {"entries": 215, "not_observed": ["bootprof.ko", "cpq.ko", "mi_async_reclaim.ko", "mi_memory.ko", "mi_rmap_efficiency.ko", "perf_helper.ko"], "unique_names": 214}
+  },
+  "observed_source_module_names": 817,
+  "prebuilt_module_names": 502,
+  "prebuilt_names_not_observed": ["bootprof.ko", "cpq.ko", "cpumaxfreq.ko", "fpsgo.ko", "frs.ko", "lb.ko", "met.ko", "met_backlight_api.ko", "met_emi_api.ko", "met_gpu_adv_api.ko", "met_gpu_api.ko", "met_gpueb_api.ko", "met_ipi_api.ko", "met_mcupm_api.ko", "met_scmi_api.ko", "met_sspm_api.ko", "met_vcore_api.ko", "metis.ko", "mi_async_reclaim.ko", "mi_memory.ko", "mi_rmap_efficiency.ko", "mi_schedule.ko", "mi_sw_sync.ko", "migt.ko", "millet_binder.ko", "millet_core.ko", "millet_hs.ko", "millet_oem_cgroup.ko", "millet_pkg.ko", "millet_sig.ko", "msync2_frd.ko", "mtk_fpsgo.ko", "mtk_mbraink.ko", "perf_helper.ko", "xiaomi_wifi_gpio.ko"],
+  "prebuilt_names_observed": 467,
+  "prebuilt_vermagic_values": ["6.1.115-android14-11-g15551c4b2ca8 SMP preempt mod_unload modversions aarch64", "6.1.166-android14-11-g7d800f47b707 SMP preempt mod_unload modversions aarch64", "6.1.57-android14-11-g7deed8fc6b46 SMP preempt mod_unload modversions aarch64"],
+  "release_status": "BLOCKED",
+  "schema_version": 1,
+  "source_equivalence": "GAP"
+}
