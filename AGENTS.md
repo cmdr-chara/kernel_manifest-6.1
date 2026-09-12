@@ -3,7 +3,7 @@
 ## Workspace contracts
 
 - This repository coordinates a separate kernel workspace, not the Android product checkout. Its instructions do not automatically become root policy for other synced Git projects.
-- Preserve pinned revisions, project identities, linkfiles, upstream toolchains, and candidate `base-rev` assertions. Do not replace the Xiaomi kernel path with AOSPF common or substitute another target merely because it configures.
+- Preserve pinned revisions, project identities, linkfiles, upstream toolchains, and candidate `base-rev` assertions. Do not replace the Xiaomi kernel path with AOSP common or substitute another target merely because it configures.
 - Keep historical snapshots independently reproducible. New integration inputs belong in a new candidate record; retain the manifest commit and resolved `repo manifest -r` with build evidence.
 - Preserve KMI/ABI enforcement. Compilation, configuration equivalence, module-name coverage, a populated distribution, and bit-reproducibility are different claims.
 - Never copy an arbitrary output directory over Android-consumed prebuilts or remove unmatched modules to make coverage green. Firmware, DTBO, signing, and device testing remain separately controlled.
